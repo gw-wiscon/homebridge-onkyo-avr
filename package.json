@@ -16,6 +16,7 @@
   "keywords": [
     "homebridge",
     "onkyo-avr",
+	"onkyo",
 	"homebridge-plugin"
   ],
   "engines": {
