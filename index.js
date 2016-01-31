@@ -41,11 +41,15 @@ function HttpStatusAccessory(log, config)
 		
 		var statusemitter = pollingtoevent(function(done) {
 			that.log("Polling switch level..");
-
+			
+			that.onkyo.PwrState( function(error, response) {
+				done(null, response);
+			});			
 		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
 
 		statusemitter.on("statuspoll", function(data) {
-			that.parseResponse( null, data);
+			var ret = that.parseResponse( null, data);
+			that.log("State data changed message received: ", ret);
 		});
 	}
 }
@@ -56,6 +60,7 @@ parseResponse: function( error, response)
 {
 	if (error) {
 		this.log("Error detected: "+JSON.stringify( error));
+		this.state = false;
 	} else {
 		this.log("Message: "+JSON.stringify( response));
 		var PWR = response.PWR;
