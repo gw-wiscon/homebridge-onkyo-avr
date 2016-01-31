@@ -2,6 +2,7 @@ var Service;
 var Characteristic;
 var request = require("request");
 var onkyo_lib = require("./lib/onkyo");
+var pollingtoevent = require('polling-to-event');
 
 module.exports = function(homebridge)
 {
@@ -18,17 +19,61 @@ function HttpStatusAccessory(log, config)
 	// config
 	this.ip_address	= config["ip_address"];
 	this.name = config["name"];
+	this.poll_status_interval = config["poll_status_interval"] || "0";
 		
 	this.state = false;
+	this.interval = parseInt( this.poll_status_interval);
 	this.avrManufacturer = "Onkyo";
 	this.avrSerial = "unknown";
 	this.avrModel = "unknown";
 	
 	this.onkyo = onkyo_lib.init({ip: this.ip_address });
 	this.onkyo.Connect();
+	
+	this.switchHandling = "check";
+	if (this.interval > 10 && this.interval < 100000) {
+		this.switchHandling = "poll";
+	}
+	
+	// Status Polling
+	if (this.switchHandling == "poll") {
+		var powerurl = this.status_url;
+		
+		var statusemitter = pollingtoevent(function(done) {
+			that.log("Polling switch level..");
+
+		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
+
+		statusemitter.on("statuspoll", function(data) {
+			that.parseResponse( null, data);
+		});
+	}
 }
 
 HttpStatusAccessory.prototype = {
+
+parseResponse: function( error, response)
+{
+	if (error) {
+		this.log("Error detected: "+JSON.stringify( error));
+	} else {
+		this.log("Message: "+JSON.stringify( response));
+		var PWR = response.PWR;
+		if (response.PWR !== null && response.PWR !== undefined) {
+			this.state = response.PWR;
+			this.log("State data changed message received: ", this.state); 
+		} else {
+			this.log.warn("State data changed message, but content could not be parsed.");
+			this.log.warn("Message received: "+JSON.stringify( response));
+		}
+	}
+	
+	var returnValue = "0";
+	if (this.state) {
+		returnValue = "1";
+	}
+	return returnValue;
+},
 
 setPowerState: function(powerOn, callback) {
 	var that = this;
@@ -42,37 +87,32 @@ setPowerState: function(powerOn, callback) {
     if (powerOn) {
 		this.log("Setting power state to ON");
 		this.onkyo.PwrOn( function(error, response) {
-			if (error) {
-				that.log('Set power ON function failed: %s', error.message);
-			}
-			callback(error, response);
+			var ret = that.parseResponse(error, response);
+			callback(error, ret);
 		}.bind(this));
 	} else {
 		this.log("Setting power state to OFF");
 		this.onkyo.PwrOff( function(error, response) {
-			if (error) {
-				that.log('Set power OFF function failed: %s', error.message);
-			}
-			callback(error, response);
+			var ret = that.parseResponse(error, response);
+			callback(error, ret);
 		}.bind(this));
     }
 },
   
 getPowerState: function(callback) {
-    if (!this.status_url) {
-    	    this.log.warn("Ignoring request; No status url defined.");
-	    callback(new Error("No status url defined."));
+    if (!this.ip_address) {
+    	this.log.warn("Ignoring request; No ip_address defined.");
+	    callback(new Error("No ip_address defined."));
 	    return;
     }
-    
+	
     this.log("Getting power state");
 	var that = this;
 
     this.onkyo.PwrState( function(error, response) {
-		if (error) {
-			that.log('Get power state failed: %s', error.message);
-		}
-		callback(error, response);
+		that.log("getPowerState - callback");
+		var ret = that.parseResponse( null, response);
+		callback(error, ret);
     }.bind(this));
 },
 
@@ -85,24 +125,32 @@ getServices: function() {
 
     // you can OPTIONALLY create an information service if you wish to override
     // the default values for things like serial number, model, etc.
-    var informationService = new Service.AccessoryInformation();
+    this.informationService = new Service.AccessoryInformation();
 	var that = this;
 
 	//console.log( "--"+this.name);
-    informationService
+    this.informationService
     .setCharacteristic(Characteristic.Manufacturer, this.avrManufacturer)
     .setCharacteristic(Characteristic.Model, this.avrModel)
     .setCharacteristic(Characteristic.SerialNumber, this.avrSerial);
 
 	this.switchService = new Service.Switch(this.name);
 
-	this.switchService
+	switch (this.switchHandling) {			
+	case "check":					
+		this.switchService
+		.getCharacteristic(Characteristic.On)
+		.on('get', this.getPowerState.bind(this))
+		.on('set', this.setPowerState.bind(this));
+		break;
+	case "poll":
+	default:
 		this.switchService
 		.getCharacteristic(Characteristic.On)
 		.on('get', function(callback) {callback(null, that.state)})
 		.on('set', this.setPowerState.bind(this));
-
-	return [informationService, this.switchService];
-
+	}
+			
+	return [this.informationService, this.switchService];
 }
 };
