@@ -68,18 +68,14 @@ parseResponse: function( error, response)
 		}
 	}
 	
-	var returnValue = "0";
-	if (this.state) {
-		returnValue = "1";
-	}
-	return returnValue;
+	return this.state;
 },
 
 setPowerState: function(powerOn, callback) {
 	var that = this;
 
     if (!this.ip_address) {
-    	    this.log.warn("Ignoring request; No ip_address defined.");
+    	this.log.warn("Ignoring request; No ip_address defined.");
 	    callback(new Error("No ip_address defined."));
 	    return;
     }
@@ -100,6 +96,12 @@ setPowerState: function(powerOn, callback) {
 },
   
 getPowerState: function(callback) {
+	if (this.switchHandling == "poll") {
+		this.log("getPowerState - polling mode, return state: ", this.state);
+		callback(null, this.state);
+		return;
+	}
+	
     if (!this.ip_address) {
     	this.log.warn("Ignoring request; No ip_address defined.");
 	    callback(new Error("No ip_address defined."));
@@ -122,35 +124,21 @@ identify: function(callback) {
 },
 
 getServices: function() {
-
-    // you can OPTIONALLY create an information service if you wish to override
-    // the default values for things like serial number, model, etc.
-    this.informationService = new Service.AccessoryInformation();
 	var that = this;
 
-	//console.log( "--"+this.name);
-    this.informationService
+	var informationService = new Service.AccessoryInformation();
+    informationService
     .setCharacteristic(Characteristic.Manufacturer, this.avrManufacturer)
     .setCharacteristic(Characteristic.Model, this.avrModel)
     .setCharacteristic(Characteristic.SerialNumber, this.avrSerial);
 
 	this.switchService = new Service.Switch(this.name);
 
-	switch (this.switchHandling) {			
-	case "check":					
-		this.switchService
+	this.switchService
 		.getCharacteristic(Characteristic.On)
 		.on('get', this.getPowerState.bind(this))
 		.on('set', this.setPowerState.bind(this));
-		break;
-	case "poll":
-	default:
-		this.switchService
-		.getCharacteristic(Characteristic.On)
-		.on('get', function(callback) {callback(null, that.state)})
-		.on('set', this.setPowerState.bind(this));
-	}
 			
-	return [this.informationService, this.switchService];
+	return [informationService, this.switchService];
 }
 };
