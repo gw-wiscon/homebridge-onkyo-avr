@@ -50,6 +50,11 @@ function HttpStatusAccessory(log, config)
 		statusemitter.on("statuspoll", function(data) {
 			var ret = that.parseResponse( null, data);
 			that.log("State data changed message received: ", ret);
+			/*Causes a switch off - we only want to inform homekit, 
+			but this is doing more
+			if (that.switchService ) {
+				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state);
+			}*/
 		});
 	}
 }
