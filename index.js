@@ -40,8 +40,6 @@ function HttpStatusAccessory(log, config)
 		var powerurl = this.status_url;
 		
 		var statusemitter = pollingtoevent(function(done) {
-			that.log("Polling switch level..");
-			
 			that.onkyo.PwrState( function(error, response) {
 				done(null, response);
 			});			
@@ -49,12 +47,10 @@ function HttpStatusAccessory(log, config)
 
 		statusemitter.on("statuspoll", function(data) {
 			var ret = that.parseResponse( null, data);
-			that.log("State data changed message received: ", ret);
-			/*Causes a switch off - we only want to inform homekit, 
-			but this is doing more
+			that.log("Poller - State data changed message received: ", ret);
 			if (that.switchService ) {
-				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state);
-			}*/
+				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
+			}
 		});
 	}
 }
@@ -81,9 +77,14 @@ parseResponse: function( error, response)
 	return this.state;
 },
 
-setPowerState: function(powerOn, callback) {
+setPowerState: function(powerOn, callback, context) {
 	var that = this;
 
+	if (context && context == "statuspoll") {
+		this.log( "setPowerState -- Status poll context is set, ignore request.");
+		callback(null, powerOn);
+	    return;
+	}
     if (!this.ip_address) {
     	this.log.warn("Ignoring request; No ip_address defined.");
 	    callback(new Error("No ip_address defined."));
@@ -93,14 +94,27 @@ setPowerState: function(powerOn, callback) {
     if (powerOn) {
 		this.log("Setting power state to ON");
 		this.onkyo.PwrOn( function(error, response) {
+			
 			var ret = that.parseResponse(error, response);
-			callback(error, ret);
+			var c=callback;
+			if (callback) {
+				callback=null;
+				if (c) {
+					c(error, ret);
+				}
+			}
 		}.bind(this));
 	} else {
 		this.log("Setting power state to OFF");
 		this.onkyo.PwrOff( function(error, response) {
 			var ret = that.parseResponse(error, response);
-			callback(error, ret);
+			var c=callback;
+			if (callback) {
+				callback=null;
+				if (c) {
+					c(error, ret);
+				}
+			}
 		}.bind(this));
     }
 },
