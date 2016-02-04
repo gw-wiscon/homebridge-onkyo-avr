@@ -11,14 +11,21 @@ module.exports = function(homebridge)
   homebridge.registerAccessory("homebridge-onkyo-avr", "OnkyoAVR", HttpStatusAccessory);
 }
 
+/*
+exports.init = function(log, config)
+{
+	return new HttpStatusAccessory(log, config);
+}*/
+
 function HttpStatusAccessory(log, config) 
 {
 	this.log = log;
 	var that = this;
-	
+
 	// config
 	this.ip_address	= config["ip_address"];
 	this.name = config["name"];
+	this.model_year = config["model_year"] || "2014";
 	this.poll_status_interval = config["poll_status_interval"] || "0";
 		
 	this.state = false;
@@ -27,7 +34,7 @@ function HttpStatusAccessory(log, config)
 	this.avrSerial = "unknown";
 	this.avrModel = "unknown";
 	
-	this.onkyo = onkyo_lib.init({ip: this.ip_address });
+	this.onkyo = onkyo_lib.init({ip: this.ip_address, modelYear: this.model_year});
 	this.onkyo.Connect();
 	
 	this.switchHandling = "check";
@@ -35,14 +42,18 @@ function HttpStatusAccessory(log, config)
 		this.switchHandling = "poll";
 	}
 	
+	//that.log("hello - "+config["ip_address"]);
 	// Status Polling
 	if (this.switchHandling == "poll") {
 		var powerurl = this.status_url;
+		that.log("start long poller..");
 		
 		var statusemitter = pollingtoevent(function(done) {
+			//that.log("Polling");
 			that.onkyo.PwrState( function(error, response) {
+				//that.log("Polling - callback");
 				done(null, response);
-			});			
+			});
 		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
 
 		statusemitter.on("statuspoll", function(data) {
@@ -166,3 +177,4 @@ getServices: function() {
 	return [informationService, this.switchService];
 }
 };
+
