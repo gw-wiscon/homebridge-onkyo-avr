@@ -1,9 +1,9 @@
 var Service;
 var Characteristic;
 var request = require("request");
-var onkyo_lib = require("./lib/onkyo");
 var pollingtoevent = require('polling-to-event');
-
+var util = require('util');
+	
 module.exports = function(homebridge)
 {
   Service = homebridge.hap.Service;
@@ -21,26 +21,36 @@ function HttpStatusAccessory(log, config)
 {
 	this.log = log;
 	var that = this;
+	this.eiscp = require('eiscp');
 
 	// config
 	this.ip_address	= config["ip_address"];
 	this.name = config["name"];
-	this.model_year = config["model_year"] || "2014";
+	this.model = config["model"];
 	this.poll_status_interval = config["poll_status_interval"] || "0";
 		
 	this.state = false;
 	this.interval = parseInt( this.poll_status_interval);
 	this.avrManufacturer = "Onkyo";
 	this.avrSerial = "unknown";
-	this.avrModel = "unknown";
-	
-	this.onkyo = onkyo_lib.init({ip: this.ip_address, modelYear: this.model_year});
-	this.onkyo.Connect();
 	
 	this.switchHandling = "check";
 	if (this.interval > 10 && this.interval < 100000) {
 		this.switchHandling = "poll";
 	}
+	
+	this.eiscp.on('debug', this.eventDebug.bind(this));
+	this.eiscp.on('error', this.eventError.bind(this));
+	this.eiscp.on('connect', this.eventConnect.bind(this));
+	this.eiscp.on('connect', this.eventConnect.bind(this));
+	this.eiscp.on('system-power', this.eventSystemPower.bind(this));
+	this.eiscp.on('volume', this.eventVolume.bind(this));
+	this.eiscp.on('close', this.eventClose.bind(this));
+	
+	this.eiscp.connect(
+		{host: this.ip_address, reconnect: true, model: this.model}
+	);
+
 	
 	//that.log("hello - "+config["ip_address"]);
 	// Status Polling
@@ -50,15 +60,14 @@ function HttpStatusAccessory(log, config)
 		
 		var statusemitter = pollingtoevent(function(done) {
 			//that.log("Polling");
-			that.onkyo.PwrState( function(error, response) {
-				//that.log("Polling - callback");
-				done(null, response);
-			});
+			that.getPowerState( function( error, response) {
+				done(error, response);
+			}, "statuspoll");
 		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
 
 		statusemitter.on("statuspoll", function(data) {
-			var ret = that.parseResponse( null, data);
-			that.log("Poller - State data changed message received: ", ret);
+			this.state = data;
+			that.log("Poller - State data changed message received: ", this.state);
 			if (that.switchService ) {
 				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 			}
@@ -68,24 +77,40 @@ function HttpStatusAccessory(log, config)
 
 HttpStatusAccessory.prototype = {
 
-parseResponse: function( error, response)
+eventDebug: function( response)
 {
-	if (error) {
-		this.log("Error detected: "+JSON.stringify( error));
-		this.state = false;
-	} else {
-		this.log("Message: "+JSON.stringify( response));
-		var PWR = response.PWR;
-		if (response.PWR !== null && response.PWR !== undefined) {
-			this.state = response.PWR;
-			this.log("State data changed message received: ", this.state); 
-		} else {
-			this.log.warn("State data changed message, but content could not be parsed.");
-			this.log.warn("Message received: "+JSON.stringify( response));
-		}
-	}
-	
-	return this.state;
+	//this.log( "eventDebug: %s", response);
+},
+
+eventError: function( response)
+{
+	this.log( "eventError: %s", error, response);
+},
+
+eventConnect: function( response)
+{
+	this.log( "eventConnect: %s", response);
+},
+
+eventSystemPower: function( response)
+{
+	//this.log( "eventSystemPower: %s", response);
+	this.state = (response == "on");
+	this.log("Event - Power message received: ", this.state);
+	//Communicate status
+	if (this.switchService ) {
+		this.switchService.getCharacteristic(Characteristic.On).setValue(this.state, null, "statuspoll");
+	}	
+},
+
+eventVolume: function( response)
+{
+	//this.log( "eventVolume: %s", response);
+},
+
+eventClose: function( response)
+{
+	this.log( "eventClose: %s", response);
 },
 
 setPowerState: function(powerOn, callback, context) {
@@ -104,37 +129,26 @@ setPowerState: function(powerOn, callback, context) {
 
     if (powerOn) {
 		this.log("Setting power state to ON");
-		this.onkyo.PwrOn( function(error, response) {
-			
-			var ret = that.parseResponse(error, response);
-			var c=callback;
-			if (callback) {
-				callback=null;
-				if (c) {
-					c(error, ret);
-				}
-			}
-		}.bind(this));
+		this.eiscp.command("system-power=on", function(error, response) {
+			this.log( "PWR ON: %s - %s", error, response);
+			this.state = powerOn;
+		}.bind(this) );
 	} else {
 		this.log("Setting power state to OFF");
-		this.onkyo.PwrOff( function(error, response) {
-			var ret = that.parseResponse(error, response);
-			var c=callback;
-			if (callback) {
-				callback=null;
-				if (c) {
-					c(error, ret);
-				}
-			}
-		}.bind(this));
+		this.eiscp.command("system-power=standby", function(error, response) {
+			this.log( "PWR OFF: %s - %s", error, response);
+			this.state = powerOn;
+		}.bind(this) );		
     }
 },
   
-getPowerState: function(callback) {
-	if (this.switchHandling == "poll") {
-		this.log("getPowerState - polling mode, return state: ", this.state);
-		callback(null, this.state);
-		return;
+getPowerState: function(callback, context) {
+	if (!context || context != "statuspoll") {
+		if (this.switchHandling == "poll") {
+			this.log("getPowerState - polling mode, return state: ", this.state);
+			callback(null, this.state);
+			return;
+		}
 	}
 	
     if (!this.ip_address) {
@@ -145,12 +159,12 @@ getPowerState: function(callback) {
 	
     this.log("Getting power state");
 	var that = this;
+	
+	this.eiscp.command("system-power=query", function( response, data) {
+		this.log( "PWR Q: %s - %s", response, data);
+		callback(null, this.state);
+	}.bind(this) );
 
-    this.onkyo.PwrState( function(error, response) {
-		that.log("getPowerState - callback");
-		var ret = that.parseResponse( null, response);
-		callback(error, ret);
-    }.bind(this));
 },
 
 identify: function(callback) {
@@ -164,7 +178,7 @@ getServices: function() {
 	var informationService = new Service.AccessoryInformation();
     informationService
     .setCharacteristic(Characteristic.Manufacturer, this.avrManufacturer)
-    .setCharacteristic(Characteristic.Model, this.avrModel)
+    .setCharacteristic(Characteristic.Model, this.model)
     .setCharacteristic(Characteristic.SerialNumber, this.avrSerial);
 
 	this.switchService = new Service.Switch(this.name);

@@ -22,8 +22,8 @@ Example accessory config (needs to be added to the homebridge config.json):
 		"accessory": "OnkyoAVR",
 		"name": "My Onkyo",
 		"ip_address": "10.0.1.23",
-		"model_year" : "2013",
-		"poll_status_interval": "60"
+		"model" : "TX-NR609",
+		"poll_status_interval": "900"
 	}
 ]
  ```
