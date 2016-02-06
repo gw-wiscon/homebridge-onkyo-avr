@@ -66,8 +66,8 @@ function HttpStatusAccessory(log, config)
 		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
 
 		statusemitter.on("statuspoll", function(data) {
-			this.state = data;
-			that.log("Poller - State data changed message received: ", this.state);
+			that.state = data;
+			that.log("Poller - State data changed message received: ", that.state);
 			if (that.switchService ) {
 				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 			}
