@@ -132,6 +132,12 @@ setPowerState: function(powerOn, callback, context) {
 		this.eiscp.command("system-power=on", function(error, response) {
 			this.log( "PWR ON: %s - %s", error, response);
 			this.state = powerOn;
+			if (error) {
+				that.state = false;
+				if (that.switchService ) {
+					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+				}					
+			}
 			callback( error, powerOn);
 		}.bind(this) );
 	} else {
@@ -139,6 +145,12 @@ setPowerState: function(powerOn, callback, context) {
 		this.eiscp.command("system-power=standby", function(error, response) {
 			this.log( "PWR OFF: %s - %s", error, response);
 			this.state = powerOn;
+			if (error) {
+				that.state = false;
+				if (that.switchService ) {
+					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+				}					
+			}
 			callback( error, powerOn);
 		}.bind(this) );		
     }
