@@ -115,7 +115,7 @@ eventClose: function( response)
 
 setPowerState: function(powerOn, callback, context) {
 	var that = this;
-
+//if context is statuspoll, then we need to ensure that we do not set the actual value
 	if (context && context == "statuspoll") {
 		this.log( "setPowerState -- Status poll context is set, ignore request.");
 		callback(null, powerOn);
@@ -132,17 +132,20 @@ setPowerState: function(powerOn, callback, context) {
 		this.eiscp.command("system-power=on", function(error, response) {
 			this.log( "PWR ON: %s - %s", error, response);
 			this.state = powerOn;
+			callback( error, powerOn);
 		}.bind(this) );
 	} else {
 		this.log("Setting power state to OFF");
 		this.eiscp.command("system-power=standby", function(error, response) {
 			this.log( "PWR OFF: %s - %s", error, response);
 			this.state = powerOn;
+			callback( error, powerOn);
 		}.bind(this) );		
     }
 },
   
 getPowerState: function(callback, context) {
+//if context is statuspoll, then we need to request the actual value
 	if (!context || context != "statuspoll") {
 		if (this.switchHandling == "poll") {
 			this.log("getPowerState - polling mode, return state: ", this.state);
