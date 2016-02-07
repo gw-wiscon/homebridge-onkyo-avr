@@ -117,8 +117,8 @@ setPowerState: function(powerOn, callback, context) {
 	var that = this;
 //if context is statuspoll, then we need to ensure that we do not set the actual value
 	if (context && context == "statuspoll") {
-		this.log( "setPowerState -- Status poll context is set, ignore request.");
-		callback(null, powerOn);
+		this.log( "setPowerState -- context: statuspoll, ignore, state: %s", this.state);
+		callback(null, this.state);
 	    return;
 	}
     if (!this.ip_address) {
@@ -130,34 +130,37 @@ setPowerState: function(powerOn, callback, context) {
     if (powerOn) {
 		this.log("Setting power state to ON");
 		this.eiscp.command("system-power=on", function(error, response) {
-			this.log( "PWR ON: %s - %s", error, response);
-			this.state = powerOn;
+			that.state = powerOn;
+			that.log( "PWR ON: %s - %s -- current state: %s", error, response, that.state);
 			if (error) {
 				that.state = false;
+				that.log( "PWR ON: ERROR -- current state: %s", that.state);
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
 			}
-			callback( error, powerOn);
+			callback( error, that.state);
 		}.bind(this) );
 	} else {
 		this.log("Setting power state to OFF");
 		this.eiscp.command("system-power=standby", function(error, response) {
-			this.log( "PWR OFF: %s - %s", error, response);
-			this.state = powerOn;
+			that.state = powerOn;
+			that.log( "PWR OFF: %s - %s -- current state: %s", error, response, that.state);
 			if (error) {
 				that.state = false;
+				that.log( "PWR OFF: ERROR -- current state: %s", that.state);
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
 			}
-			callback( error, powerOn);
+			callback( error, that.state);
 		}.bind(this) );		
     }
 },
   
 getPowerState: function(callback, context) {
-//if context is statuspoll, then we need to request the actual value
+	var that = this;
+	//if context is statuspoll, then we need to request the actual value
 	if (!context || context != "statuspoll") {
 		if (this.switchHandling == "poll") {
 			this.log("getPowerState - polling mode, return state: ", this.state);
@@ -173,10 +176,8 @@ getPowerState: function(callback, context) {
     }
 	
     this.log("Getting power state");
-	var that = this;
-	
 	this.eiscp.command("system-power=query", function( response, data) {
-		this.log( "PWR Q: %s - %s", response, data);
+		this.log( "PWR Q: %s - %s -- current state: %s", response, data, this.state);
 		callback(null, this.state);
 	}.bind(this) );
 
