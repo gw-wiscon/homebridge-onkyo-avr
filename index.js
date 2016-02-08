@@ -3,7 +3,7 @@ var Characteristic;
 var request = require("request");
 var pollingtoevent = require('polling-to-event');
 var util = require('util');
-	
+
 module.exports = function(homebridge)
 {
   Service = homebridge.hap.Service;
@@ -127,6 +127,9 @@ setPowerState: function(powerOn, callback, context) {
 	    return;
     }
 
+	//do the callback immediately, to free homekit
+	//have the event later on execute changes
+	callback( error, that.state);
     if (powerOn) {
 		this.log("Setting power state to ON");
 		this.eiscp.command("system-power=on", function(error, response) {
@@ -152,8 +155,7 @@ setPowerState: function(powerOn, callback, context) {
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
-			}
-			callback( error, that.state);
+			}			
 		}.bind(this) );		
     }
 },
@@ -175,12 +177,13 @@ getPowerState: function(callback, context) {
 	    return;
     }
 	
+	//do the callback immediately, to free homekit
+	//have the event later on execute changes
+	callback(null, this.state);
     this.log("Getting power state");
 	this.eiscp.command("system-power=query", function( response, data) {
-		this.log( "PWR Q: %s - %s -- current state: %s", response, data, this.state);
-		callback(null, this.state);
+		this.log( "PWR Q: %s - %s -- current state: %s", response, data, this.state);		
 	}.bind(this) );
-
 },
 
 identify: function(callback) {

@@ -1,6 +1,6 @@
 {
   "name": "homebridge-onkyo-avr",
-  "version": "0.2.24",
+  "version": "0.2.26",
   "description": "Homebridge module for the Onkyo AVR TX-NR609",
   "main": "index.js",
   "scripts": {
@@ -28,7 +28,7 @@
   "author": "gw-wiscon <gw.wiscon@gmail.com> (http://)",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/gwk-wiscon/homebridge-onkyo-avr/issues"
+    "url": "https://github.com/gw-wiscon/homebridge-onkyo-avr/issues"
   },
-  "homepage": "https://github.com/gwk-wiscon/homebridge-onkyo-avr#readme"
+  "homepage": "https://github.com/gw-wiscon/homebridge-onkyo-avr#readme"
 }
