@@ -142,7 +142,6 @@ setPowerState: function(powerOn, callback, context) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
 			}
-			callback( error, that.state);
 		}.bind(this) );
 	} else {
 		this.log("Setting power state to OFF");
