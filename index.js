@@ -84,7 +84,7 @@ eventDebug: function( response)
 
 eventError: function( response)
 {
-	this.log( "eventError: %s", error, response);
+	this.log( "eventError: %s", response);
 },
 
 eventConnect: function( response)
@@ -129,7 +129,7 @@ setPowerState: function(powerOn, callback, context) {
 
 	//do the callback immediately, to free homekit
 	//have the event later on execute changes
-	callback( error, that.state);
+	callback( null, that.state);
     if (powerOn) {
 		this.log("Setting power state to ON");
 		this.eiscp.command("system-power=on", function(error, response) {
