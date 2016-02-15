@@ -22,6 +22,7 @@ function HttpStatusAccessory(log, config)
 	this.log = log;
 	var that = this;
 	this.eiscp = require('eiscp');
+	this.setAttempt = 0;
 
 	// config
 	this.ip_address	= config["ip_address"];
@@ -59,15 +60,16 @@ function HttpStatusAccessory(log, config)
 		that.log("start long poller..");
 		
 		var statusemitter = pollingtoevent(function(done) {
-			//that.log("Polling");
+			that.log("start polling..");
 			that.getPowerState( function( error, response) {
-				done(error, response);
+				//pass also the setAttempt, to force a homekit update if needed
+				done(error, response, that.setAttempt);
 			}, "statuspoll");
 		}, {longpolling:true,interval:that.interval * 1000,longpollEventName:"statuspoll"});
 
 		statusemitter.on("statuspoll", function(data) {
 			that.state = data;
-			that.log("Poller - State data changed message received: ", that.state);
+			that.log("event - status poller - new state: ", that.state);
 			if (that.switchService ) {
 				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 			}
@@ -96,7 +98,7 @@ eventSystemPower: function( response)
 {
 	//this.log( "eventSystemPower: %s", response);
 	this.state = (response == "on");
-	this.log("Event - Power message received: ", this.state);
+	this.log("eventSystemPower - message: %s, new state %s", response, this.state);
 	//Communicate status
 	if (this.switchService ) {
 		this.switchService.getCharacteristic(Characteristic.On).setValue(this.state, null, "statuspoll");
@@ -117,7 +119,7 @@ setPowerState: function(powerOn, callback, context) {
 	var that = this;
 //if context is statuspoll, then we need to ensure that we do not set the actual value
 	if (context && context == "statuspoll") {
-		this.log( "setPowerState -- context: statuspoll, ignore, state: %s", this.state);
+		this.log( "setPowerState - polling mode, ignore, state: %s", this.state);
 		callback(null, this.state);
 	    return;
 	}
@@ -127,30 +129,31 @@ setPowerState: function(powerOn, callback, context) {
 	    return;
     }
 
+	this.setAttempt = this.setAttempt+1;
+		
 	//do the callback immediately, to free homekit
 	//have the event later on execute changes
+	that.state = powerOn;
 	callback( null, that.state);
     if (powerOn) {
-		this.log("Setting power state to ON");
+		this.log("setPowerState - actual mode, power state: %s, switching to ON", that.state);
 		this.eiscp.command("system-power=on", function(error, response) {
-			that.state = powerOn;
-			that.log( "PWR ON: %s - %s -- current state: %s", error, response, that.state);
+			//that.log( "PWR ON: %s - %s -- current state: %s", error, response, that.state);
 			if (error) {
 				that.state = false;
-				that.log( "PWR ON: ERROR -- current state: %s", that.state);
+				that.log( "setPowerState - PWR ON: ERROR - current state: %s", that.state);
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
 			}
 		}.bind(this) );
 	} else {
-		this.log("Setting power state to OFF");
+		this.log("setPowerState - actual mode, power state: %s, switching to OFF", that.state);
 		this.eiscp.command("system-power=standby", function(error, response) {
-			that.state = powerOn;
-			that.log( "PWR OFF: %s - %s -- current state: %s", error, response, that.state);
+			//that.log( "PWR OFF: %s - %s -- current state: %s", error, response, that.state);
 			if (error) {
 				that.state = false;
-				that.log( "PWR OFF: ERROR -- current state: %s", that.state);
+				that.log( "setPowerState - PWR OFF: ERROR - current state: %s", that.state);
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
@@ -179,9 +182,15 @@ getPowerState: function(callback, context) {
 	//do the callback immediately, to free homekit
 	//have the event later on execute changes
 	callback(null, this.state);
-    this.log("Getting power state");
-	this.eiscp.command("system-power=query", function( response, data) {
-		this.log( "PWR Q: %s - %s -- current state: %s", response, data, this.state);		
+    this.log("getPowerState - actual mode, return state: ", this.state);
+	this.eiscp.command("system-power=query", function( error, data) {
+		if (error) {
+			that.state = false;
+			that.log( "getPowerState - PWR QRY: ERROR - current state: %s", that.state);
+			if (that.switchService ) {
+				that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+			}					
+		}	
 	}.bind(this) );
 },
 
