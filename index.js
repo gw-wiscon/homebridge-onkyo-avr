@@ -103,12 +103,6 @@ eventSystemPower: function( response)
 	if (this.switchService ) {
 		this.switchService.getCharacteristic(Characteristic.On).setValue(this.state, null, "statuspoll");
 	}	
-
-	// If the AVR has just been turned on, apply the Input default
-	if (this.state && this.defaultInput) {
-		this.log("Attempting to set the input selector to sat");
-		this.eiscp.command("input-selector="+this.defaultInput);
-	}
 },
 
 eventVolume: function( response)
@@ -151,6 +145,13 @@ setPowerState: function(powerOn, callback, context) {
 				if (that.switchService ) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
+			}
+			else {
+				// If the AVR has just been turned on, apply the Input default
+				if (this.state && this.defaultInput) {
+					this.log("Attempting to set the input selector to sat");
+					this.eiscp.command("input-selector="+this.defaultInput);
+				}
 			}
 		}.bind(this) );
 	} else {
