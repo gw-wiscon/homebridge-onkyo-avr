@@ -29,6 +29,7 @@ function HttpStatusAccessory(log, config)
 	this.name = config["name"];
 	this.model = config["model"];
 	this.poll_status_interval = config["poll_status_interval"] || "0";
+	this.defaultInput = config["default_input"]; 
 		
 	this.state = false;
 	this.interval = parseInt( this.poll_status_interval);
@@ -42,7 +43,6 @@ function HttpStatusAccessory(log, config)
 	
 	this.eiscp.on('debug', this.eventDebug.bind(this));
 	this.eiscp.on('error', this.eventError.bind(this));
-	this.eiscp.on('connect', this.eventConnect.bind(this));
 	this.eiscp.on('connect', this.eventConnect.bind(this));
 	this.eiscp.on('system-power', this.eventSystemPower.bind(this));
 	this.eiscp.on('volume', this.eventVolume.bind(this));
@@ -103,6 +103,12 @@ eventSystemPower: function( response)
 	if (this.switchService ) {
 		this.switchService.getCharacteristic(Characteristic.On).setValue(this.state, null, "statuspoll");
 	}	
+
+	// If the AVR has just been turned on, apply the Input default
+	if (this.state && this.defaultInput) {
+		this.log("Attempting to set the input selector to sat");
+		this.eiscp.command("input-selector="+this.defaultInput);
+	}
 },
 
 eventVolume: function( response)
