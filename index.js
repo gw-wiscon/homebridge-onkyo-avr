@@ -162,7 +162,7 @@ setPowerState: function(powerOn, callback, context) {
 				that.state = false;
 				that.log( "setPowerState - PWR OFF: ERROR - current state: %s", that.state);
 				if (that.switchService ) {
-					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+					that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 				}					
 			}			
 		}.bind(this) );		
