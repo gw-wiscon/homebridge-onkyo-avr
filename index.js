@@ -29,6 +29,9 @@ function HttpStatusAccessory(log, config)
 	this.name = config["name"];
 	this.model = config["model"];
 	this.poll_status_interval = config["poll_status_interval"] || "0";
+	
+	this.defaultInputNeedsSetting = false;
+	this.defaultInput = config["default_input"]; 
 		
 	this.state = false;
 	this.interval = parseInt( this.poll_status_interval);
@@ -42,7 +45,6 @@ function HttpStatusAccessory(log, config)
 	
 	this.eiscp.on('debug', this.eventDebug.bind(this));
 	this.eiscp.on('error', this.eventError.bind(this));
-	this.eiscp.on('connect', this.eventConnect.bind(this));
 	this.eiscp.on('connect', this.eventConnect.bind(this));
 	this.eiscp.on('system-power', this.eventSystemPower.bind(this));
 	this.eiscp.on('volume', this.eventVolume.bind(this));
@@ -103,6 +105,25 @@ eventSystemPower: function( response)
 	if (this.switchService ) {
 		this.switchService.getCharacteristic(Characteristic.On).setValue(this.state, null, "statuspoll");
 	}	
+	
+	// If the AVR has just been turned on, apply the Input default
+	if (this.defaultInputNeedsSetting) {
+		this.log("Attempting to set the input selector to "+this.defaultInput);
+		if (this.state && this.defaultInput) {
+			this.log("Setting input selector to "+this.defaultInput);
+			var that = this;
+			this.eiscp.command("input-selector="+this.defaultInput, function(error, response) {
+				if (error) {
+					that.log( "Error while setting input: %s", error);
+				}
+			});			
+		}
+		
+		this.defaultInputNeedsSetting = false;
+	}
+	else {
+		this.log("Default input doesn't need setting");
+	}
 },
 
 eventVolume: function( response)
@@ -146,7 +167,13 @@ setPowerState: function(powerOn, callback, context) {
 					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
 				}					
 			}
+			else {
+				if (that.defaultInput) {
+					that.defaultInputNeedsSetting = true;				
+				}
+			}
 		}.bind(this) );
+			
 	} else {
 		this.log("setPowerState - actual mode, power state: %s, switching to OFF", that.state);
 		this.eiscp.command("system-power=standby", function(error, response) {
@@ -155,9 +182,12 @@ setPowerState: function(powerOn, callback, context) {
 				that.state = false;
 				that.log( "setPowerState - PWR OFF: ERROR - current state: %s", that.state);
 				if (that.switchService ) {
-					that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+					that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 				}					
 			}			
+
+			that.defaultInputNeedsSetting = false;				
+	
 		}.bind(this) );		
     }
 },
@@ -188,7 +218,7 @@ getPowerState: function(callback, context) {
 			that.state = false;
 			that.log( "getPowerState - PWR QRY: ERROR - current state: %s", that.state);
 			if (that.switchService ) {
-				that.switchService.getCharacteristic(Characteristic.On).setValue(powerOn, null, "statuspoll");
+				that.switchService.getCharacteristic(Characteristic.On).setValue(that.state, null, "statuspoll");
 			}					
 		}	
 	}.bind(this) );
