@@ -12,11 +12,12 @@
   },
   "dependencies": {
     "eiscp": "git://github.com/tillbaks/node-eiscp.git",
+    "math-round": "^1.0.0",
     "polling-to-event": "^2.0.2",
     "request": "^2.69.0"
   },
   "keywords": [
-	"homebridge-plugin",
+    "homebridge-plugin",
     "homebridge",
     "onkyo-avr",
     "onkyo"

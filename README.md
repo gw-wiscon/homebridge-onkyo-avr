@@ -1,14 +1,18 @@
 # homebridge-onkyo-avr
-Homebridge module for Onkyo AVRs (tested on TX-NR609)
+Homebridge module for Onkyo AVRs (tested on TX-NR609 and TX-8050)
 
 # Description
 
 Onkyo AVR module, works in principle.
+
 Ensure that the onkyo is controllable using for instance IOS apps like OnkyoRemote3.
+
 Next step: Check what happens if the AVR is reset or is temporary not available.
+
 For Troubleshooting look in the homebridge-onkyo-avr/node_modules/eiscp/examples directory and see if you can run 3.js. "node 3.js". It should output all available commands.
 
 Updated version 0.3 includes support for volume, mute, and has options for setting default_input.
+
 Siri Control for Volume and Mute - Use an app like EVE and create scenes for Mute On and Mute Off, and various Volume(s). 
 For example, I created a scene for "Onkyo Low" and "Onkyo Loud", which show up in the Home App now.  
 
@@ -28,11 +32,11 @@ Example accessory config (needs to be added to the homebridge config.json):
 		"name": "My Onkyo",
 		"ip_address": "10.0.1.23",
 		"model" : "TX-NR609",
-		"poll_status_interval": "900"
-        "default_input": "net",
-        "default_volume": "10",
-        "max_volume": "35",
-        "map_volume_100": true
+		"poll_status_interval": "900",
+		"default_input": "net",
+		"default_volume": "10",
+		"max_volume": "35",
+		"map_volume_100": true
 	}
 ]
  ```
